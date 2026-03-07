@@ -5,9 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { EXPENSE_CATEGORIES, EXPENSE_SUBCATEGORIES, ExpenseCategory } from '@/types/finance';
-import { Wallet, Save, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Wallet, Save, Loader2, ChevronLeft, ChevronRight, Plus, Trash2, Copy } from 'lucide-react';
 import { IncomeTargetSettings } from './IncomeTargetSettings';
-import { format } from 'date-fns';
+import { format, subMonths } from 'date-fns';
 import { id } from 'date-fns/locale';
 import {
   Accordion,
@@ -15,6 +15,16 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 const categoryIcons: Record<ExpenseCategory, string> = {
   Kebutuhan: '🏠',
@@ -24,11 +34,27 @@ const categoryIcons: Record<ExpenseCategory, string> = {
 };
 
 export function BudgetSettingsTab() {
-  const { budgetSettings, upsertBudgetSetting, customCategories, isLoading } = useProfileSettings();
+  const {
+    budgetSettings,
+    upsertBudgetSetting,
+    deleteBudgetSettingByMonth,
+    copyBudgetsFromMonth,
+    customCategories,
+    addCustomCategory,
+    deleteCustomCategory,
+    isLoading
+  } = useProfileSettings();
   const { toast } = useToast();
   const [savingItems, setSavingItems] = useState<Set<string>>(new Set());
   const [localBudgets, setLocalBudgets] = useState<Record<string, string>>({});
   const [selectedMonth, setSelectedMonth] = useState(new Date());
+
+  // Custom Category State
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [activeAddCategory, setActiveAddCategory] = useState<ExpenseCategory | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [isCopying, setIsCopying] = useState(false);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID').format(value);
@@ -82,6 +108,73 @@ export function BudgetSettingsTab() {
         delete next[key];
         return next;
       });
+    }
+  };
+
+  const handleDeleteBudget = async (category: string, subcategory: string) => {
+    const isCustom = customCategories.some(c => c.category === category && c.subcategory === subcategory && c.type === 'expense');
+    const monthKey = format(selectedMonth, 'yyyy-MM');
+
+    if (isCustom) {
+      if (!confirm(`Hapus kategori kustom "${subcategory}" dan budgetnya?`)) return;
+      const customCat = customCategories.find(c => c.category === category && c.subcategory === subcategory && c.type === 'expense');
+      if (customCat) {
+        const { error } = await deleteCustomCategory(customCat.id);
+        if (error) {
+          toast({ variant: 'destructive', title: 'Gagal menghapus kategori' });
+        } else {
+          toast({ title: 'Kategori kustom berhasil dihapus' });
+        }
+      }
+    } else {
+      if (!confirm(`Hapus budget "${subcategory}" untuk bulan ini?`)) return;
+      const { error } = await deleteBudgetSettingByMonth(category, subcategory, monthKey);
+      if (error) {
+        toast({ variant: 'destructive', title: 'Gagal menghapus budget' });
+      } else {
+        toast({ title: 'Budget bulan ini berhasil dihapus' });
+        const key = getKey(category, subcategory);
+        setLocalBudgets(prev => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+      }
+    }
+  };
+
+  const handleCopyFromPreviousMonth = async () => {
+    const fromMonth = format(subMonths(selectedMonth, 1), 'yyyy-MM');
+    const toMonth = format(selectedMonth, 'yyyy-MM');
+
+    setIsCopying(true);
+    const { success, count, error } = await copyBudgetsFromMonth(fromMonth, toMonth);
+    setIsCopying(false);
+
+    if (error) {
+      toast({ variant: 'destructive', title: 'Gagal menyalin budget' });
+    } else if (count === 0) {
+      toast({ title: 'Tidak ada data budget di bulan sebelumnya' });
+    } else {
+      toast({ title: `Berhasil menyalin ${count} budget dari bulan sebelumnya` });
+      setLocalBudgets({});
+    }
+  };
+
+  const handleAddCustomCategory = async () => {
+    if (!newCategoryName.trim() || !activeAddCategory) return;
+
+    setIsAddingCategory(true);
+    const { error } = await addCustomCategory(activeAddCategory, newCategoryName, 'expense');
+    setIsAddingCategory(false);
+
+    if (error) {
+      toast({ variant: 'destructive', title: 'Gagal menambah kategori' });
+    } else {
+      toast({ title: 'Kategori berhasil ditambahkan' });
+      setNewCategoryName('');
+      setIsAddCategoryOpen(false);
+      setActiveAddCategory(null);
     }
   };
 
@@ -155,19 +248,44 @@ export function BudgetSettingsTab() {
             <IncomeTargetSettings selectedMonth={selectedMonth} />
           </div>
 
-          <div className="mb-4">
-            <h3 className="text-lg font-serif font-semibold mb-2 flex items-center gap-2">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-lg font-serif font-semibold flex items-center gap-2">
               Budget Pengeluaran
             </h3>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={handleCopyFromPreviousMonth}
+              disabled={isCopying}
+            >
+              {isCopying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+              Salin dari Bulan Lalu
+            </Button>
           </div>
 
           <Accordion type="multiple" className="w-full">
             {EXPENSE_CATEGORIES.map((category) => (
               <AccordionItem key={category} value={category}>
                 <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">{categoryIcons[category]}</span>
-                    <span className="font-medium">{category}</span>
+                  <div className="flex items-center justify-between w-full pr-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{categoryIcons[category]}</span>
+                      <span className="font-medium">{category}</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 gap-1 text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveAddCategory(category);
+                        setIsAddCategoryOpen(true);
+                      }}
+                    >
+                      <Plus className="h-3 w-3" />
+                      Kategori
+                    </Button>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
@@ -198,17 +316,25 @@ export function BudgetSettingsTab() {
                               />
                             </div>
                             <Button
-                              size="sm"
+                              size="icon"
                               variant={hasLocalChange ? "default" : "ghost"}
                               onClick={() => handleSaveBudget(category, subcategory)}
                               disabled={isSaving}
-                              className="h-9"
+                              className="h-9 w-9"
                             >
                               {isSaving ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
                                 <Save className="h-4 w-4" />
                               )}
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => handleDeleteBudget(category, subcategory)}
+                            >
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         </div>
@@ -219,6 +345,34 @@ export function BudgetSettingsTab() {
               </AccordionItem>
             ))}
           </Accordion>
+
+          <Dialog open={isAddCategoryOpen} onOpenChange={setIsAddCategoryOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Tambah Kategori {activeAddCategory}</DialogTitle>
+                <DialogDescription>
+                  Buat subkategori pengeluaran baru untuk kelompok {activeAddCategory}.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Nama Subkategori</Label>
+                  <Input
+                    placeholder="Contoh: Netflix, Arisan, Sewa Kantor"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddCategoryOpen(false)}>Batal</Button>
+                <Button onClick={handleAddCustomCategory} disabled={isAddingCategory || !newCategoryName.trim()}>
+                  {isAddingCategory && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Simpan
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </CardContent>
       </Card>
     </div>

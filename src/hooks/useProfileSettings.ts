@@ -152,6 +152,68 @@ export function useProfileSettings() {
     return { success: true };
   }, [user]);
 
+  const deleteBudgetSettingByMonth = useCallback(async (category: string, subcategory: string, month: string) => {
+    if (!user) return { error: new Error('Not authenticated') };
+    triggerSyncStart();
+
+    const { error } = await supabase
+      .from('budget_settings')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('category', category)
+      .eq('subcategory', subcategory)
+      .eq('month', month);
+
+    if (error) {
+      triggerSyncError();
+      return { error };
+    }
+
+    triggerSyncComplete();
+    setBudgetSettings((prev) => prev.filter(b => !(b.category === category && b.subcategory === subcategory && b.month === month)));
+    return { success: true };
+  }, [user]);
+
+  const copyBudgetsFromMonth = useCallback(async (fromMonth: string, toMonth: string) => {
+    if (!user) return { error: new Error('Not authenticated') };
+    triggerSyncStart();
+
+    // Get budgets from source month
+    const sourceBudgets = budgetSettings.filter(b => b.month === fromMonth);
+
+    if (sourceBudgets.length === 0) {
+      triggerSyncComplete();
+      return { success: true, count: 0 };
+    }
+
+    const newBudgets = sourceBudgets.map(b => ({
+      user_id: user.id,
+      category: b.category,
+      subcategory: b.subcategory,
+      monthly_budget: b.monthly_budget,
+      month: toMonth
+    }));
+
+    const { data, error } = await supabase
+      .from('budget_settings')
+      .upsert(newBudgets, { onConflict: 'user_id,category,subcategory,month' })
+      .select();
+
+    if (error) {
+      triggerSyncError();
+      return { error };
+    }
+
+    triggerSyncComplete();
+    // Refresh local state
+    setBudgetSettings(prev => {
+      const filtered = prev.filter(b => b.month !== toMonth);
+      return [...filtered, ...data];
+    });
+
+    return { success: true, count: data.length };
+  }, [user, budgetSettings]);
+
   // PAYMENT METHODS CRUD
   const addPaymentMethod = useCallback(async (name: string, balance: number, icon: string = 'wallet') => {
     if (!user) return { error: new Error('Not authenticated') };
@@ -307,6 +369,8 @@ export function useProfileSettings() {
     // Budget
     upsertBudgetSetting,
     deleteBudgetSetting,
+    deleteBudgetSettingByMonth,
+    copyBudgetsFromMonth,
     getBudgetForSubcategory,
     // Payment Methods
     addPaymentMethod,
