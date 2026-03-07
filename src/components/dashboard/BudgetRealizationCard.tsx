@@ -60,8 +60,14 @@ export function BudgetRealizationCard({ budgetSettings, expenses }: BudgetRealiz
     subcategorySpending.set(key, (subcategorySpending.get(key) || 0) + Number(exp.amount));
   });
 
+  // Filter budget settings for selected month only
+  const filteredBudgets = budgetSettings.filter((b) => {
+    if (!b.month) return false;
+    return b.month === selectedMonth;
+  });
+
   // Calculate realization for each budget
-  const realizations = budgetSettings
+  const realizations = filteredBudgets
     .filter((b) => b.monthly_budget > 0)
     .map((budget) => {
       const key = `${budget.category}|${budget.subcategory}`;
