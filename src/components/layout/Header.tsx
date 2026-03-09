@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { SyncStatus } from './SyncStatus';
 import { UserMenu } from './UserMenu';
+import logoImg from '@/assets/logo.jpg';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -20,9 +21,7 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-card/80 backdrop-blur-xl">
       <div className="container flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-primary shadow-elegant">
-            <span className="text-lg">💵</span>
-          </div>
+          <img src={logoImg} alt="Pintar Keuangan Logo" className="h-10 w-10 rounded-xl shadow-elegant object-contain" />
           <div className="hidden sm:block">
             <h1 className="font-serif text-lg font-semibold text-foreground">
               Pintar Keuangan
