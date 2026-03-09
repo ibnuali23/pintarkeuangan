@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LogOut, User, Shield, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -50,7 +50,8 @@ export function UserMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 gap-2 px-2">
-          <Avatar className="h-8 w-8">
+          <Avatar className="h-8 w-8 ring-2 ring-primary/10 group-hover:ring-primary/30 transition-all">
+            <AvatarImage src={profile?.avatar_url || (user?.user_metadata?.avatar_url as string | undefined)} className="object-cover" />
             <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
               {getInitials(displayName)}
             </AvatarFallback>

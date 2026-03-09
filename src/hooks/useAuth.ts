@@ -6,6 +6,7 @@ interface Profile {
   id: string;
   user_id: string;
   full_name: string;
+  avatar_url?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -34,7 +35,7 @@ export function useAuth() {
       console.error('Error fetching profile:', error);
       return null;
     }
-    return data;
+    return data as Profile | null;
   }, []);
 
   // Check if user is admin
@@ -102,7 +103,7 @@ export function useAuth() {
 
   const signUp = async (email: string, password: string, fullName: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -131,7 +132,7 @@ export function useAuth() {
 
   const resetPassword = async (email: string) => {
     const redirectUrl = `${window.location.origin}/auth/reset-password`;
-    
+
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl,
     });
@@ -145,7 +146,7 @@ export function useAuth() {
     return { data, error };
   };
 
-  const updateProfile = async (updates: Partial<Pick<Profile, 'full_name'>>) => {
+  const updateProfile = async (updates: Partial<Pick<Profile, 'full_name' | 'avatar_url'>>) => {
     if (!user) return { error: new Error('No user logged in') };
 
     const { data, error } = await supabase
@@ -156,7 +157,7 @@ export function useAuth() {
       .single();
 
     if (!error && data) {
-      setProfile(data);
+      setProfile(data as Profile);
     }
     return { data, error };
   };
@@ -174,6 +175,6 @@ export function useAuth() {
     resetPassword,
     updatePassword,
     updateProfile,
-    refetchProfile: () => user && fetchProfile(user.id).then(setProfile),
+    refetchProfile: () => user && fetchProfile(user.id).then(p => setProfile(p as Profile)),
   };
 }
