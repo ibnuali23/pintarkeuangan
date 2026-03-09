@@ -11,6 +11,7 @@ import { Eye, EyeOff, Loader2, Mail, Lock, User } from 'lucide-react';
 import { z } from 'zod';
 import { lovable } from '@/integrations/lovable/index';
 import { Separator } from '@/components/ui/separator';
+import logoImg from '@/assets/logo.jpg';
 
 const loginSchema = z.object({
   email: z.string().email('Email tidak valid'),
@@ -218,9 +219,7 @@ export default function AuthPage() {
       <div className="w-full max-w-md">
         {/* Logo & Title */}
         <div className="text-center mb-8 animate-fade-in">
-          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl gradient-primary shadow-elegant mb-4">
-            <span className="text-2xl">💵</span>
-          </div>
+          <img src={logoImg} alt="Pintar Keuangan Logo" className="h-16 w-16 rounded-2xl shadow-elegant object-contain mb-4" />
           <h1 className="font-serif text-2xl font-bold text-foreground">Pintar Keuangan</h1>
           <p className="text-muted-foreground mt-2 text-sm">
             Kelola Keuanganmu dengan Cerdas, Aman, dan Berkah.
