@@ -11,6 +11,7 @@ import { Eye, EyeOff, Loader2, Mail, Lock, User } from 'lucide-react';
 import { z } from 'zod';
 import { lovable } from '@/integrations/lovable/index';
 import { Separator } from '@/components/ui/separator';
+import logoImg from '@/assets/logo.jpg';
 
 const loginSchema = z.object({
   email: z.string().email('Email tidak valid'),
