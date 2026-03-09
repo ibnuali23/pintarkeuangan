@@ -2,6 +2,8 @@ import { useAuthContext } from '@/contexts/AuthContext';
 import { useSupabaseFinanceData } from './useSupabaseFinanceData';
 import { useProfileSettings } from './useProfileSettings';
 import { useDebts } from './useDebts';
+import { useAssets } from './useAssets';
+import { calculateDepreciatedValue } from '@/types/asset';
 import { useMemo } from 'react';
 
 export function useFinancialInsights() {
@@ -9,10 +11,13 @@ export function useFinancialInsights() {
     const { getMonthlyData, expenses } = useSupabaseFinanceData();
     const { paymentMethods } = useProfileSettings();
     const { debts } = useDebts();
+    const { assets } = useAssets();
 
     return useMemo(() => {
         // 1. Calculate Net Worth
-        const totalAssets = paymentMethods.reduce((sum, method) => sum + method.balance, 0);
+        const liquidAssets = paymentMethods.reduce((sum, method) => sum + method.balance, 0);
+        const nonLiquidAssets = assets.reduce((sum, asset) => sum + calculateDepreciatedValue(asset), 0);
+        const totalAssets = liquidAssets + nonLiquidAssets;
         const unpaidHutang = debts
             .filter((d) => d.type === 'hutang' && d.status === 'belum_lunas')
             .reduce((sum, d) => sum + Number(d.amount), 0);
@@ -158,6 +163,8 @@ export function useFinancialInsights() {
         return {
             netWorth: {
                 totalAssets,
+                liquidAssets,
+                nonLiquidAssets,
                 totalDebts: unpaidHutang,
                 netWorth,
                 isPositive: netWorth >= 0,
@@ -192,5 +199,5 @@ export function useFinancialInsights() {
             },
             advice,
         };
-    }, [getMonthlyData, paymentMethods, debts, expenses]);
+    }, [getMonthlyData, paymentMethods, debts, expenses, assets]);
 }

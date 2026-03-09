@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, TrendingDown, BarChart3, Menu, X, BookUser, Lightbulb, Palette, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, TrendingDown, BarChart3, Menu, X, BookUser, Lightbulb, Palette, Sun, Moon, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/components/ThemeProvider';
@@ -12,6 +12,7 @@ const navigation = [
   { name: 'Pemasukan', href: '/income', icon: TrendingUp },
   { name: 'Pengeluaran', href: '/expense', icon: TrendingDown },
   { name: 'Hutang Piutang', href: '/debt', icon: BookUser },
+  { name: 'Aset Saya', href: '/assets', icon: Wallet },
   { name: 'Laporan', href: '/report', icon: BarChart3 },
   { name: 'Insights', href: '/insights', icon: Lightbulb },
 ];

@@ -17,6 +17,7 @@ import NotFound from "./pages/NotFound";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import DebtPage from "./pages/DebtPage";
 import FinancialInsightsPage from "./pages/FinancialInsightsPage";
+import AssetPage from "./pages/AssetPage";
 
 const queryClient = new QueryClient();
 
@@ -72,6 +73,11 @@ const App = () => (
               <Route path="/insights" element={
                 <ProtectedRoute>
                   <FinancialInsightsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/assets" element={
+                <ProtectedRoute>
+                  <AssetPage />
                 </ProtectedRoute>
               } />
 

@@ -81,10 +81,14 @@ export default function FinancialInsightsPage() {
                                     {formatCurrency(insights.netWorth.netWorth)}
                                 </h3>
 
-                                <div className="grid grid-cols-2 gap-4 mt-6">
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6">
                                     <div className="bg-secondary/50 p-3 rounded-lg">
                                         <p className="text-xs text-muted-foreground mb-1">Total Saldo + Piutang</p>
-                                        <p className="font-medium text-success">{formatCurrency(insights.netWorth.totalAssets)}</p>
+                                        <p className="font-medium text-success">{formatCurrency(insights.netWorth.liquidAssets)}</p>
+                                    </div>
+                                    <div className="bg-secondary/50 p-3 rounded-lg">
+                                        <p className="text-xs text-muted-foreground mb-1">Aset Non-Likuid</p>
+                                        <p className="font-medium text-primary">{formatCurrency(insights.netWorth.nonLiquidAssets)}</p>
                                     </div>
                                     <div className="bg-secondary/50 p-3 rounded-lg">
                                         <p className="text-xs text-muted-foreground mb-1">Total Utang</p>
