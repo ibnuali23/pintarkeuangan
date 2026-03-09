@@ -219,7 +219,7 @@ export default function AuthPage() {
       <div className="w-full max-w-md">
         {/* Logo & Title */}
         <div className="text-center mb-8 animate-fade-in">
-          <img src={logoImg} alt="Pintar Keuangan Logo" className="h-16 w-16 rounded-2xl shadow-elegant object-contain mb-4" />
+          <img src={logoImg} alt="Pintar Keuangan Logo" className="mx-auto h-16 w-16 rounded-2xl shadow-elegant object-contain mb-4" />
           <h1 className="font-serif text-2xl font-bold text-foreground">Pintar Keuangan</h1>
           <p className="text-muted-foreground mt-2 text-sm">
             Kelola Keuanganmu dengan Cerdas, Aman, dan Berkah.
