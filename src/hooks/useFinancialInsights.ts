@@ -34,8 +34,11 @@ export function useFinancialInsights() {
         // we use the current month for most metrics or a generic calculation.
         const currentMonthData = getMonthlyData(new Date());
 
-        // Estimate Annual Expense (Current month expense * 12)
-        const annualExpenseEstimate = currentMonthData.totalExpense * 12;
+        // Hitung pengeluaran hanya dari kategori Kebutuhan dan Keinginan
+        const essentialExpense = (currentMonthData.categorySpending['Kebutuhan'] || 0) + (currentMonthData.categorySpending['Keinginan'] || 0);
+
+        // Estimate Annual Expense based on essential categories only
+        const annualExpenseEstimate = essentialExpense * 12;
 
         // Calculate Investment Assets
         // Find payment methods that are likely investments (or sum up the 'Investasi' category spending)
