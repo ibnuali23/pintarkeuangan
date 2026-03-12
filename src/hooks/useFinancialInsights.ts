@@ -37,6 +37,10 @@ export function useFinancialInsights() {
         // Hitung pengeluaran hanya dari kategori Kebutuhan dan Keinginan
         const essentialExpense = (currentMonthData.categorySpending['Kebutuhan'] || 0) + (currentMonthData.categorySpending['Keinginan'] || 0);
 
+        console.log('[DEBUG Insights] categorySpending:', currentMonthData.categorySpending);
+        console.log('[DEBUG Insights] essentialExpense:', essentialExpense, 'totalExpense:', currentMonthData.totalExpense);
+        console.log('[DEBUG Insights] recommendedEmergencyFund will be:', essentialExpense * 3);
+
         // Estimate Annual Expense based on essential categories only
         const annualExpenseEstimate = essentialExpense * 12;
 
