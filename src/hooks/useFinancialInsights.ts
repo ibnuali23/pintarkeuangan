@@ -88,7 +88,7 @@ export function useFinancialInsights() {
             .filter(e => e.category === 'Dana Darurat')
             .reduce((sum, e) => sum + Number(e.amount), 0);
 
-        const emergencyRatio = totalExpense > 0 ? emergencyFunds / totalExpense : 0;
+        const emergencyRatio = essentialExpense > 0 ? emergencyFunds / essentialExpense : 0;
 
         // Calculate Health Score (0-100)
         let healthScore = 100;
@@ -113,7 +113,7 @@ export function useFinancialInsights() {
         // 4. Emergency Fund Recommendation
         // Assuming user is single for now (factor = 3). Next iteration could pull this from profile.
         const emergencyFactor = 3;
-        const recommendedEmergencyFund = totalExpense * emergencyFactor;
+        const recommendedEmergencyFund = essentialExpense * emergencyFactor;
         const emergencyProgress = recommendedEmergencyFund > 0 ? (emergencyFunds / recommendedEmergencyFund) * 100 : 0;
 
         // 5. Retirement Fund Recommendation
