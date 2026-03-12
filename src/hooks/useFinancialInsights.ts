@@ -88,7 +88,7 @@ export function useFinancialInsights() {
             .filter(e => e.category === 'Dana Darurat')
             .reduce((sum, e) => sum + Number(e.amount), 0);
 
-        const emergencyRatio = totalExpense > 0 ? emergencyFunds / totalExpense : 0;
+        const emergencyRatio = essentialExpense > 0 ? emergencyFunds / essentialExpense : 0;
 
         // Calculate Health Score (0-100)
         let healthScore = 100;
