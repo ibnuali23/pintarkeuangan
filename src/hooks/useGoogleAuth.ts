@@ -24,7 +24,7 @@ export const useGoogleAuth = () => {
                 const tokenClient = window.google.accounts.oauth2.initTokenClient({
                     client_id: clientId,
                     scope: 'https://www.googleapis.com/auth/drive.file',
-                    callback: (tokenResponse) => {
+                    callback: (tokenResponse: any) => {
                         setIsTokenLoading(false);
                         if (tokenResponse.error !== undefined) {
                             reject(tokenResponse);
@@ -32,11 +32,11 @@ export const useGoogleAuth = () => {
                             resolve(tokenResponse.access_token);
                         }
                     },
-                    error_callback: (error) => {
+                    error_callback: (error: any) => {
                         setIsTokenLoading(false);
                         reject(error);
                     },
-                });
+                } as any);
 
                 tokenClient.requestAccessToken({ prompt: 'consent' });
             } catch (error) {
