@@ -6,11 +6,22 @@ import { triggerSyncStart, triggerSyncComplete, triggerSyncError } from '@/compo
 export type DebtType = 'hutang' | 'piutang';
 export type DebtStatus = 'belum_lunas' | 'lunas';
 
+export interface DebtPayment {
+    id: string;
+    debt_id: string;
+    user_id: string;
+    amount: number;
+    note: string | null;
+    paid_at: string;
+    created_at: string;
+}
+
 export interface Debt {
     id: string;
     user_id: string;
     type: DebtType;
     amount: number;
+    remaining_amount: number;
     person_name: string;
     description: string | null;
     due_date: string | null;
@@ -27,10 +38,7 @@ export function useDebts() {
     const fetchDebts = useCallback(async () => {
         if (!user) return;
 
-        // Using any for Supabase queries to untyped tables until we regenerate types
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data, error } = await supabase
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .from('debts' as any)
             .select('*')
             .eq('user_id', user.id)
@@ -64,14 +72,13 @@ export function useDebts() {
         if (!user) return { error: new Error('Not authenticated') };
         triggerSyncStart();
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data, error } = await supabase
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .from('debts' as any)
             .insert({
                 user_id: user.id,
                 type: debtData.type,
                 amount: debtData.amount,
+                remaining_amount: debtData.amount,
                 person_name: debtData.person_name,
                 description: debtData.description || null,
                 due_date: debtData.due_date || null,
@@ -91,13 +98,79 @@ export function useDebts() {
         return { data: data as unknown as Debt };
     }, [user]);
 
+    const makePayment = useCallback(async (debtId: string, paymentAmount: number, note?: string) => {
+        if (!user) return { error: new Error('Not authenticated') };
+        triggerSyncStart();
+
+        const debt = debts.find(d => d.id === debtId);
+        if (!debt) return { error: new Error('Debt not found') };
+
+        const newRemaining = Math.max(0, Number(debt.remaining_amount) - paymentAmount);
+        const newStatus = newRemaining <= 0 ? 'lunas' : 'belum_lunas';
+
+        // Insert payment record
+        const { error: paymentError } = await supabase
+            .from('debt_payments' as any)
+            .insert({
+                debt_id: debtId,
+                user_id: user.id,
+                amount: paymentAmount,
+                note: note || null,
+            });
+
+        if (paymentError) {
+            triggerSyncError();
+            console.error('Error adding payment:', paymentError);
+            return { error: paymentError };
+        }
+
+        // Update debt remaining_amount and status
+        const { data, error } = await supabase
+            .from('debts' as any)
+            .update({
+                remaining_amount: newRemaining,
+                status: newStatus,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', debtId)
+            .eq('user_id', user.id)
+            .select()
+            .single();
+
+        if (error) {
+            triggerSyncError();
+            console.error('Error updating debt:', error);
+            return { error };
+        }
+
+        triggerSyncComplete();
+        setDebts((prev) => prev.map((d) => (d.id === debtId ? (data as unknown as Debt) : d)));
+        return { data: data as unknown as Debt };
+    }, [user, debts]);
+
+    const getPayments = useCallback(async (debtId: string): Promise<DebtPayment[]> => {
+        if (!user) return [];
+
+        const { data, error } = await supabase
+            .from('debt_payments' as any)
+            .select('*')
+            .eq('debt_id', debtId)
+            .eq('user_id', user.id)
+            .order('paid_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching payments:', error);
+            return [];
+        }
+
+        return (data as unknown as DebtPayment[]) || [];
+    }, [user]);
+
     const updateDebt = useCallback(async (id: string, updates: Partial<Pick<Debt, 'amount' | 'person_name' | 'description' | 'due_date' | 'status'>>) => {
         if (!user) return { error: new Error('Not authenticated') };
         triggerSyncStart();
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data, error } = await supabase
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .from('debts' as any)
             .update({
                 ...updates,
@@ -124,7 +197,6 @@ export function useDebts() {
         triggerSyncStart();
 
         const { error } = await supabase
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .from('debts' as any)
             .delete()
             .eq('id', id)
@@ -145,6 +217,8 @@ export function useDebts() {
         debts,
         isLoading,
         addDebt,
+        makePayment,
+        getPayments,
         updateDebt,
         deleteDebt,
         refetch: fetchDebts,

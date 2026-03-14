@@ -5,6 +5,23 @@ import { useDebts } from './useDebts';
 import { useAssets } from './useAssets';
 import { calculateDepreciatedValue } from '@/types/asset';
 import { useMemo } from 'react';
+import { subMonths } from 'date-fns';
+
+function getAverageEssentialExpense(getMonthlyData: (date: Date) => any, months: number): number {
+    const now = new Date();
+    let total = 0;
+    let validMonths = 0;
+
+    for (let i = 0; i < months; i++) {
+        const date = subMonths(now, i);
+        const data = getMonthlyData(date);
+        const essential = (data.categorySpending['Kebutuhan'] || 0) + (data.categorySpending['Keinginan'] || 0);
+        if (essential > 0) validMonths++;
+        total += essential;
+    }
+
+    return validMonths > 0 ? total / validMonths : 0;
+}
 
 export function useFinancialInsights() {
     const { user } = useAuthContext();
@@ -20,38 +37,26 @@ export function useFinancialInsights() {
         const totalAssets = liquidAssets + nonLiquidAssets;
         const unpaidHutang = debts
             .filter((d) => d.type === 'hutang' && d.status === 'belum_lunas')
-            .reduce((sum, d) => sum + Number(d.amount), 0);
+            .reduce((sum, d) => sum + Number(d.remaining_amount ?? d.amount), 0);
         const unpaidPiutang = debts
             .filter((d) => d.type === 'piutang' && d.status === 'belum_lunas')
-            .reduce((sum, d) => sum + Number(d.amount), 0);
+            .reduce((sum, d) => sum + Number(d.remaining_amount ?? d.amount), 0);
 
-        // Include piutang as an asset since it's money owed to the user
-        // Subtract hutang since it's a liability
         const netWorth = (totalAssets + unpaidPiutang) - unpaidHutang;
 
-        // We need some historical data for ratios, let's look at the current month
-        // as well as the average of the last 3 months if possible, but for simplicity, 
-        // we use the current month for most metrics or a generic calculation.
         const currentMonthData = getMonthlyData(new Date());
 
-        // Hitung pengeluaran hanya dari kategori Kebutuhan dan Keinginan
-        const essentialExpense = (currentMonthData.categorySpending['Kebutuhan'] || 0) + (currentMonthData.categorySpending['Keinginan'] || 0);
+        // Rata-rata pengeluaran Kebutuhan+Keinginan 3 bulan untuk dana darurat
+        const avgEssential3Months = getAverageEssentialExpense(getMonthlyData, 3);
+        // Rata-rata pengeluaran Kebutuhan+Keinginan 12 bulan untuk dana pensiun
+        const avgEssential12Months = getAverageEssentialExpense(getMonthlyData, 12);
 
-        console.log('[DEBUG Insights] categorySpending:', currentMonthData.categorySpending);
-        console.log('[DEBUG Insights] essentialExpense:', essentialExpense, 'totalExpense:', currentMonthData.totalExpense);
-        console.log('[DEBUG Insights] recommendedEmergencyFund will be:', essentialExpense * 3);
+        // Annual expense estimate for retirement based on 12-month average
+        const annualExpenseEstimate = avgEssential12Months * 12;
 
-        // Estimate Annual Expense based on essential categories only
-        const annualExpenseEstimate = essentialExpense * 12;
+        const investmentAssets = Math.max(0, netWorth);
 
-        // Calculate Investment Assets
-        // Find payment methods that are likely investments (or sum up the 'Investasi' category spending)
-        // For ratio, we'll use total assets as investment assets if no specific "investment" account is marked,
-        // or we can use the "Investasi" spending to project. Let's assume 20% of net worth is liquid investments 
-        // if not specified, but let's just use `totalAssets` as the liquid investment pool for now.
-        const investmentAssets = Math.max(0, netWorth); // Simplification
-
-        // 2. Financial Freedom Ratio = Investment Assets / Annual Expense
+        // 2. Financial Freedom Ratio
         const financialFreedomRatio = annualExpenseEstimate > 0
             ? investmentAssets / annualExpenseEstimate
             : 0;
@@ -78,35 +83,30 @@ export function useFinancialInsights() {
             freedomLevelDesc = "Pondasi keuangan Anda sudah stabil, pertahankan kebiasaan baik Anda.";
         }
 
-        // 3. Financial Health Check (Ratios)
+        // 3. Financial Health Check
         const totalIncome = currentMonthData.totalIncome;
         const totalExpense = currentMonthData.totalExpense;
-        const totalTabungan = currentMonthData.categorySpending['Investasi'] + currentMonthData.categorySpending['Dana Darurat']; // Assuming these are saved
+        const totalTabungan = (currentMonthData.categorySpending['Investasi'] || 0) + (currentMonthData.categorySpending['Dana Darurat'] || 0);
 
         const debtRatio = totalAssets > 0 ? unpaidHutang / totalAssets : (unpaidHutang > 0 ? 1 : 0);
         const savingRatio = totalIncome > 0 ? totalTabungan / totalIncome : 0;
         const expenseRatio = totalIncome > 0 ? totalExpense / totalIncome : 0;
 
-        // Hitung Dana Darurat dari total semua pengeluaran historis yang masuk kategori 'Dana Darurat'
         const emergencyFunds = expenses
             .filter(e => e.category === 'Dana Darurat')
             .reduce((sum, e) => sum + Number(e.amount), 0);
 
-        const emergencyRatio = essentialExpense > 0 ? emergencyFunds / essentialExpense : 0;
+        const emergencyRatio = avgEssential3Months > 0 ? emergencyFunds / avgEssential3Months : 0;
 
-        // Calculate Health Score (0-100)
+        // Health Score
         let healthScore = 100;
         if (debtRatio > 0.5) healthScore -= 30;
         else if (debtRatio > 0.3) healthScore -= 15;
-
         if (savingRatio < 0.1) healthScore -= 20;
         else if (savingRatio < 0.2) healthScore -= 10;
-
         if (expenseRatio > 0.9) healthScore -= 30;
         else if (expenseRatio > 0.7) healthScore -= 15;
-
         if (emergencyRatio < 3) healthScore -= 20;
-
         healthScore = Math.max(0, Math.min(100, healthScore));
 
         let healthStatus = "Sangat Sehat";
@@ -114,18 +114,17 @@ export function useFinancialInsights() {
         else if (healthScore < 60) healthStatus = "Perlu Perbaikan";
         else if (healthScore < 80) healthStatus = "Cukup Sehat";
 
-        // 4. Emergency Fund Recommendation
-        // Assuming user is single for now (factor = 3). Next iteration could pull this from profile.
+        // 4. Emergency Fund - based on 3-month average
         const emergencyFactor = 3;
-        const recommendedEmergencyFund = essentialExpense * emergencyFactor;
+        const recommendedEmergencyFund = avgEssential3Months * emergencyFactor;
         const emergencyProgress = recommendedEmergencyFund > 0 ? (emergencyFunds / recommendedEmergencyFund) * 100 : 0;
 
-        // 5. Retirement Fund Recommendation
+        // 5. Retirement Fund - based on 12-month average
         const retirementTarget = annualExpenseEstimate * 25;
         const retirementProgress = retirementTarget > 0 ? (investmentAssets / retirementTarget) * 100 : 0;
-        const monthlyInvestmentRequired = retirementTarget > investmentAssets ? (retirementTarget - investmentAssets) / (20 * 12) : 0; // Assume 20 years to retirement
+        const monthlyInvestmentRequired = retirementTarget > investmentAssets ? (retirementTarget - investmentAssets) / (20 * 12) : 0;
 
-        // 6. Generated Advice
+        // 6. Advice
         const advice = [];
         if (savingRatio < 0.1) {
             advice.push({
@@ -134,7 +133,6 @@ export function useFinancialInsights() {
                 message: `Rasio tabungan Anda saat ini ${(savingRatio * 100).toFixed(1)}%. Usahakan untuk menabung minimal 10-20% dari pendapatan bulanan.`,
             });
         }
-
         if (debtRatio > 0.5) {
             advice.push({
                 type: 'danger',
@@ -142,7 +140,6 @@ export function useFinancialInsights() {
                 message: 'Rasio utang terhadap aset Anda cukup tinggi (>50%). Fokuslah melunasi utang dengan bunga tertinggi terlebih dahulu.',
             });
         }
-
         if (emergencyRatio < 3) {
             advice.push({
                 type: 'info',
@@ -150,7 +147,6 @@ export function useFinancialInsights() {
                 message: `Dana darurat yang ideal adalah 3-6 kali pengeluaran bulanan. Saat ini Anda berada di rasio ${emergencyRatio.toFixed(1)}x.`,
             });
         }
-
         if (expenseRatio < 0.5 && savingRatio > 0.2) {
             advice.push({
                 type: 'success',
@@ -158,7 +154,6 @@ export function useFinancialInsights() {
                 message: 'Pengeluaran dan tabungan Anda berada dalam rasio yang sangat sehat. Jangan lupa berinvestasi untuk mengalahkan inflasi.',
             });
         }
-
         if (advice.length === 0) {
             advice.push({
                 type: 'success',

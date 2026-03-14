@@ -8,10 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { CheckCircle2, Circle, Clock, Plus, Trash2 } from 'lucide-react';
+import { CheckCircle2, Clock, Plus, Trash2, Banknote, History } from 'lucide-react';
+import { DebtPaymentModal } from '@/components/debts/DebtPaymentModal';
+import { DebtPaymentHistory } from '@/components/debts/DebtPaymentHistory';
 
 export default function DebtPage() {
-    const { debts, isLoading, addDebt, updateDebt, deleteDebt } = useDebts();
+    const { debts, isLoading, addDebt, makePayment, getPayments, deleteDebt } = useDebts();
     const [activeTab, setActiveTab] = useState<DebtType>('hutang');
 
     const [isAdding, setIsAdding] = useState(false);
@@ -22,11 +24,14 @@ export default function DebtPage() {
         due_date: '',
     });
 
+    const [paymentModal, setPaymentModal] = useState<{ debtId: string; remaining: number; type: DebtType } | null>(null);
+    const [historyModal, setHistoryModal] = useState<string | null>(null);
+
     const hutangList = debts.filter((d) => d.type === 'hutang');
     const piutangList = debts.filter((d) => d.type === 'piutang');
 
-    const totalHutang = hutangList.filter(d => d.status === 'belum_lunas').reduce((sum, d) => sum + Number(d.amount), 0);
-    const totalPiutang = piutangList.filter(d => d.status === 'belum_lunas').reduce((sum, d) => sum + Number(d.amount), 0);
+    const totalHutang = hutangList.filter(d => d.status === 'belum_lunas').reduce((sum, d) => sum + Number(d.remaining_amount ?? d.amount), 0);
+    const totalPiutang = piutangList.filter(d => d.status === 'belum_lunas').reduce((sum, d) => sum + Number(d.remaining_amount ?? d.amount), 0);
 
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('id-ID', {
@@ -53,9 +58,10 @@ export default function DebtPage() {
         setFormData({ person_name: '', amount: '', description: '', due_date: '' });
     };
 
-    const toggleStatus = async (debtId: string, currentStatus: string) => {
-        const newStatus = currentStatus === 'lunas' ? 'belum_lunas' : 'lunas';
-        await updateDebt(debtId, { status: newStatus });
+    const handlePayment = async (amount: number, note?: string) => {
+        if (!paymentModal) return;
+        await makePayment(paymentModal.debtId, amount, note);
+        setPaymentModal(null);
     };
 
     const renderDebtList = (list: typeof debts, type: DebtType) => {
@@ -72,52 +78,86 @@ export default function DebtPage() {
 
         return (
             <div className="space-y-4 mt-4">
-                {list.map((debt) => (
-                    <div
-                        key={debt.id}
-                        className={`flex flex-col sm:flex-row gap-4 p-4 rounded-xl border ${debt.status === 'lunas' ? 'bg-secondary/30 opacity-70' : 'bg-card'}`}
-                    >
-                        <div className="flex-1 space-y-1">
-                            <div className="flex items-center gap-2">
-                                <h4 className="font-semibold text-base">
-                                    {isHutang ? `Ke: ${debt.person_name}` : `Dari: ${debt.person_name}`}
-                                </h4>
-                                {debt.status === 'lunas' && (
-                                    <span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded-full flex items-center gap-1">
-                                        <CheckCircle2 className="h-3 w-3" /> Lunas
-                                    </span>
-                                )}
-                            </div>
-                            <p className="text-sm text-muted-foreground">{debt.description || '-'}</p>
-                            {debt.due_date && (
-                                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
-                                    Jatuh tempo: {format(new Date(debt.due_date), 'dd MMM yyyy', { locale: id })}
-                                </p>
-                            )}
-                        </div>
+                {list.map((debt) => {
+                    const remaining = Number(debt.remaining_amount ?? debt.amount);
+                    const original = Number(debt.amount);
+                    const paid = original - remaining;
+                    const progressPercent = original > 0 ? (paid / original) * 100 : 0;
 
-                        <div className="flex items-center justify-between sm:flex-col sm:items-end sm:justify-center gap-2">
-                            <span className={`font-semibold ${isHutang ? 'text-destructive' : 'text-success'}`}>
-                                {formatCurrency(Number(debt.amount))}
-                            </span>
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    variant={debt.status === 'lunas' ? "outline" : "default"}
-                                    size="sm"
-                                    onClick={() => toggleStatus(debt.id, debt.status)}
-                                    className="h-8"
-                                >
-                                    {debt.status === 'lunas' ? (
-                                        <>Batal Lunas</>
-                                    ) : (
-                                        <><CheckCircle2 className="h-4 w-4 mr-1" /> Tandai Lunas</>
+                    return (
+                        <div
+                            key={debt.id}
+                            className={`flex flex-col gap-3 p-4 rounded-xl border ${debt.status === 'lunas' ? 'bg-secondary/30 opacity-70' : 'bg-card'}`}
+                        >
+                            <div className="flex flex-col sm:flex-row gap-4">
+                                <div className="flex-1 space-y-1">
+                                    <div className="flex items-center gap-2">
+                                        <h4 className="font-semibold text-base">
+                                            {isHutang ? `Ke: ${debt.person_name}` : `Dari: ${debt.person_name}`}
+                                        </h4>
+                                        {debt.status === 'lunas' && (
+                                            <span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                <CheckCircle2 className="h-3 w-3" /> Lunas
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">{debt.description || '-'}</p>
+                                    {debt.due_date && (
+                                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                            <Clock className="h-3 w-3" />
+                                            Jatuh tempo: {format(new Date(debt.due_date), 'dd MMM yyyy', { locale: id })}
+                                        </p>
                                     )}
+                                </div>
+
+                                <div className="flex items-center justify-between sm:flex-col sm:items-end sm:justify-center gap-2">
+                                    <div className="text-right">
+                                        <span className={`font-semibold text-lg ${isHutang ? 'text-destructive' : 'text-success'}`}>
+                                            {formatCurrency(remaining)}
+                                        </span>
+                                        {paid > 0 && (
+                                            <p className="text-xs text-muted-foreground">
+                                                dari {formatCurrency(original)}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Progress bar */}
+                            {original > 0 && (
+                                <div className="w-full bg-secondary rounded-full h-2">
+                                    <div
+                                        className={`h-2 rounded-full transition-all ${debt.status === 'lunas' ? 'bg-success' : 'bg-primary'}`}
+                                        style={{ width: `${Math.min(100, progressPercent)}%` }}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Action buttons */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                                {debt.status !== 'lunas' && (
+                                    <Button
+                                        size="sm"
+                                        className="h-8"
+                                        onClick={() => setPaymentModal({ debtId: debt.id, remaining, type })}
+                                    >
+                                        <Banknote className="h-4 w-4 mr-1" />
+                                        {isHutang ? 'Bayar' : 'Terima Bayaran'}
+                                    </Button>
+                                )}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8"
+                                    onClick={() => setHistoryModal(debt.id)}
+                                >
+                                    <History className="h-4 w-4 mr-1" /> Riwayat
                                 </Button>
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                                    className="h-8 w-8 text-destructive hover:bg-destructive/10 ml-auto"
                                     onClick={() => {
                                         if (window.confirm('Yakin ingin menghapus catatan ini?')) {
                                             deleteDebt(debt.id);
@@ -128,8 +168,8 @@ export default function DebtPage() {
                                 </Button>
                             </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         );
     };
@@ -192,7 +232,7 @@ export default function DebtPage() {
                     {isAdding && (
                         <Card className="glass-card mb-6 animate-in slide-in-from-top-2">
                             <CardHeader>
-                                <CardTitle className="text-lg">Tambah {activeTab === 'hutang' ? 'Hutang Bar' : 'Piutang Baru'}</CardTitle>
+                                <CardTitle className="text-lg">Tambah {activeTab === 'hutang' ? 'Hutang Baru' : 'Piutang Baru'}</CardTitle>
                                 <CardDescription>
                                     Masukkan detail {activeTab === 'hutang' ? 'hutang yang Anda pinjam' : 'uang yang dipinjam orang lain dari Anda'}
                                 </CardDescription>
@@ -257,6 +297,25 @@ export default function DebtPage() {
                     </TabsContent>
                 </Tabs>
             </div>
+
+            {paymentModal && (
+                <DebtPaymentModal
+                    open={!!paymentModal}
+                    onClose={() => setPaymentModal(null)}
+                    onSubmit={handlePayment}
+                    remaining={paymentModal.remaining}
+                    type={paymentModal.type}
+                />
+            )}
+
+            {historyModal && (
+                <DebtPaymentHistory
+                    open={!!historyModal}
+                    onClose={() => setHistoryModal(null)}
+                    debtId={historyModal}
+                    getPayments={getPayments}
+                />
+            )}
         </Layout>
     );
 }
