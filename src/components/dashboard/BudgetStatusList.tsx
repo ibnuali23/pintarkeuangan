@@ -1,9 +1,8 @@
 import { cn } from '@/lib/utils';
-import { ExpenseCategory, BUDGET_PERCENTAGES } from '@/types/finance';
 import { AlertTriangle, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface BudgetStatus {
-  category: ExpenseCategory;
+  category: string;
   targetPercentage: number;
   spentPercentage: number;
   spent: number;
@@ -14,16 +13,10 @@ interface BudgetStatus {
 interface BudgetStatusListProps {
   budgetStatus: BudgetStatus[];
   totalIncome: number;
+  categoryIcons?: Record<string, string>;
 }
 
-const categoryIcons: Record<ExpenseCategory, string> = {
-  Kebutuhan: '🏠',
-  Investasi: '📈',
-  Keinginan: '🎁',
-  'Dana Darurat': '🛡️',
-};
-
-export function BudgetStatusList({ budgetStatus, totalIncome }: BudgetStatusListProps) {
+export function BudgetStatusList({ budgetStatus, totalIncome, categoryIcons = {} }: BudgetStatusListProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -75,7 +68,7 @@ export function BudgetStatusList({ budgetStatus, totalIncome }: BudgetStatusList
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <span className="text-lg">{categoryIcons[item.category]}</span>
+                <span className="text-lg">{categoryIcons[item.category] || '📦'}</span>
                 <div>
                   <p className="font-medium text-sm">{item.category}</p>
                   <p className="text-xs text-muted-foreground">

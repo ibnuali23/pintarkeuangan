@@ -1,25 +1,34 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { BUDGET_PERCENTAGES, ExpenseCategory } from '@/types/finance';
 
 interface BudgetDonutChartProps {
-  categorySpending: Record<ExpenseCategory, number>;
+  categorySpending: Record<string, number>;
   totalExpense: number;
+  budgetPercentages?: Record<string, number>;
+  categoryIcons?: Record<string, string>;
 }
 
-const COLORS = {
-  Kebutuhan: 'hsl(168, 76%, 36%)',
-  Investasi: 'hsl(43, 74%, 49%)',
-  Keinginan: 'hsl(280, 65%, 60%)',
-  'Dana Darurat': 'hsl(200, 70%, 50%)',
-};
+const DEFAULT_COLORS = [
+  'hsl(168, 76%, 36%)',
+  'hsl(43, 74%, 49%)',
+  'hsl(280, 65%, 60%)',
+  'hsl(200, 70%, 50%)',
+  'hsl(340, 65%, 55%)',
+  'hsl(120, 50%, 45%)',
+  'hsl(30, 80%, 55%)',
+  'hsl(260, 55%, 50%)',
+];
 
-export function BudgetDonutChart({ categorySpending, totalExpense }: BudgetDonutChartProps) {
-  const data = (Object.keys(BUDGET_PERCENTAGES) as ExpenseCategory[]).map((category) => ({
+export function BudgetDonutChart({ categorySpending, totalExpense, budgetPercentages = {}, categoryIcons = {} }: BudgetDonutChartProps) {
+  const categories = Object.keys(budgetPercentages).length > 0
+    ? Object.keys(budgetPercentages)
+    : Object.keys(categorySpending).filter(k => categorySpending[k] > 0);
+
+  const data = categories.map((category, i) => ({
     name: category,
-    value: categorySpending[category],
-    percentage: totalExpense > 0 ? (categorySpending[category] / totalExpense) * 100 : 0,
-    target: BUDGET_PERCENTAGES[category],
-    color: COLORS[category],
+    value: categorySpending[category] || 0,
+    percentage: totalExpense > 0 ? ((categorySpending[category] || 0) / totalExpense) * 100 : 0,
+    target: budgetPercentages[category] || 0,
+    color: DEFAULT_COLORS[i % DEFAULT_COLORS.length],
   }));
 
   const formatCurrency = (value: number) => {
