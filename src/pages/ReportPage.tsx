@@ -11,7 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { MonthlyBarChart } from '@/components/dashboard/MonthlyBarChart';
 import { BudgetDonutChart } from '@/components/dashboard/BudgetDonutChart';
-import { BUDGET_PERCENTAGES, ExpenseCategory } from '@/types/finance';
+import { useDynamicCategories } from '@/hooks/useDynamicCategories';
+import { useExpenseCategories } from '@/hooks/useExpenseCategories';
 import { useDynamicCategories } from '@/hooks/useDynamicCategories';
 import { toast } from 'sonner';
 import {
