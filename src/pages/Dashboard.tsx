@@ -258,7 +258,7 @@ export default function Dashboard() {
           <Card className="glass-card">
             <CardHeader>
               <CardTitle className="font-serif text-lg">
-                Alokasi Pengeluaran 50-30-15-5
+                Alokasi Pengeluaran
               </CardTitle>
             </CardHeader>
             <CardContent>
