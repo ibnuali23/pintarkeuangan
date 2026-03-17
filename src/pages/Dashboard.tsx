@@ -265,6 +265,8 @@ export default function Dashboard() {
               <BudgetDonutChart
                 categorySpending={monthlyData.categorySpending}
                 totalExpense={monthlyData.totalExpense}
+                budgetPercentages={budgetPercentages}
+                categoryIcons={expCategoryIcons}
               />
             </CardContent>
           </Card>
