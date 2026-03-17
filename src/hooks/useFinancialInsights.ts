@@ -86,7 +86,9 @@ export function useFinancialInsights() {
         // 3. Financial Health Check
         const totalIncome = currentMonthData.totalIncome;
         const totalExpense = currentMonthData.totalExpense;
-        const totalTabungan = (currentMonthData.categorySpending['Investasi'] || 0) + (currentMonthData.categorySpending['Dana Darurat'] || 0);
+        const totalTabungan = Object.entries(currentMonthData.categorySpending)
+            .filter(([cat]) => cat !== 'Kebutuhan' && cat !== 'Keinginan')
+            .reduce((sum, [, val]) => sum + val, 0);
 
         const debtRatio = totalAssets > 0 ? unpaidHutang / totalAssets : (unpaidHutang > 0 ? 1 : 0);
         const savingRatio = totalIncome > 0 ? totalTabungan / totalIncome : 0;

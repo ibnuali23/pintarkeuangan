@@ -22,6 +22,7 @@ import { useMoneyTransfers } from '@/hooks/useMoneyTransfers';
 import { useDailyExpenseData } from '@/hooks/useDailyExpenseData';
 import { useIncomeTargets } from '@/hooks/useIncomeTargets';
 import { useAuthContext } from '@/contexts/AuthContext';
+import { useExpenseCategories } from '@/hooks/useExpenseCategories';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { IncomeTargetList } from '@/components/dashboard/IncomeTargetList';
@@ -39,6 +40,7 @@ export default function Dashboard() {
   const { getMonthlyData, getMonthlySummary, expenses, isLoading } = useSupabaseFinanceData();
   const { paymentMethods, budgetSettings, adjustPaymentMethodBalance } = useProfileSettings();
   const { incomeTargets } = useIncomeTargets();
+  const { budgetPercentages, categoryIcons: expCategoryIcons } = useExpenseCategories();
   const { transfers, addTransfer, deleteTransfer } = useMoneyTransfers();
 
   // Convert Supabase transactions to the format expected by useDailyExpenseData
@@ -63,7 +65,7 @@ export default function Dashboard() {
     exportToExcel,
   } = useDailyExpenseData(expensesForDaily, dailyFilter, customRange);
 
-  const monthlyData = getMonthlyData(currentDate, budgetSettings);
+  const monthlyData = getMonthlyData(currentDate, budgetSettings, budgetPercentages);
   const monthlySummary = getMonthlySummary(6);
 
   const formatCurrency = (value: number) => {
@@ -256,13 +258,15 @@ export default function Dashboard() {
           <Card className="glass-card">
             <CardHeader>
               <CardTitle className="font-serif text-lg">
-                Alokasi Pengeluaran 50-30-15-5
+                Alokasi Pengeluaran
               </CardTitle>
             </CardHeader>
             <CardContent>
               <BudgetDonutChart
                 categorySpending={monthlyData.categorySpending}
                 totalExpense={monthlyData.totalExpense}
+                budgetPercentages={budgetPercentages}
+                categoryIcons={expCategoryIcons}
               />
             </CardContent>
           </Card>
@@ -293,6 +297,7 @@ export default function Dashboard() {
               <BudgetStatusList
                 budgetStatus={monthlyData.budgetStatus}
                 totalIncome={monthlyData.totalIncome}
+                categoryIcons={expCategoryIcons}
               />
             </CardContent>
           </Card>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/contexts/AuthContext';
-import { ExpenseCategory, IncomeSubcategory, BUDGET_PERCENTAGES, ExpenseSubcategory } from '@/types/finance';
+import { IncomeSubcategory } from '@/types/finance';
 import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
 import { triggerSyncStart, triggerSyncComplete, triggerSyncError } from '@/components/layout/SyncStatus';
 import { BudgetSetting } from './useProfileSettings';
@@ -34,42 +34,33 @@ export function useSupabaseFinanceData() {
   const [notes, setNotes] = useState<MonthlyNote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch all transactions for the user
   const fetchTransactions = useCallback(async () => {
     if (!user) return;
-
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
       .eq('user_id', user.id)
       .order('date', { ascending: false });
-
     if (error) {
       console.error('Error fetching transactions:', error);
       return;
     }
-
     setTransactions(data || []);
   }, [user]);
 
-  // Fetch all notes for the user
   const fetchNotes = useCallback(async () => {
     if (!user) return;
-
     const { data, error } = await supabase
       .from('monthly_notes')
       .select('*')
       .eq('user_id', user.id);
-
     if (error) {
       console.error('Error fetching notes:', error);
       return;
     }
-
     setNotes(data || []);
   }, [user]);
 
-  // Initial data fetch
   useEffect(() => {
     if (isAuthenticated && user) {
       setIsLoading(true);
@@ -83,7 +74,6 @@ export function useSupabaseFinanceData() {
     }
   }, [isAuthenticated, user, fetchTransactions, fetchNotes]);
 
-  // Add income
   const addIncome = useCallback(async (income: {
     date: string;
     category: string;
@@ -93,9 +83,7 @@ export function useSupabaseFinanceData() {
     payment_method_id?: string;
   }) => {
     if (!user) return { error: new Error('Not authenticated') };
-
     triggerSyncStart();
-
     const { data, error } = await supabase
       .from('transactions')
       .insert({
@@ -110,31 +98,26 @@ export function useSupabaseFinanceData() {
       })
       .select()
       .single();
-
     if (error) {
       triggerSyncError();
       console.error('Error adding income:', error);
       return { error };
     }
-
     triggerSyncComplete();
     setTransactions((prev) => [data, ...prev]);
     return { data, payment_method_id: income.payment_method_id };
   }, [user]);
 
-  // Add expense
   const addExpense = useCallback(async (expense: {
     date: string;
-    category: ExpenseCategory;
+    category: string;
     subcategory: string;
     description: string;
     amount: number;
     payment_method_id?: string;
   }) => {
     if (!user) return { error: new Error('Not authenticated') };
-
     triggerSyncStart();
-
     const { data, error } = await supabase
       .from('transactions')
       .insert({
@@ -149,47 +132,37 @@ export function useSupabaseFinanceData() {
       })
       .select()
       .single();
-
     if (error) {
       triggerSyncError();
       console.error('Error adding expense:', error);
       return { error };
     }
-
     triggerSyncComplete();
     setTransactions((prev) => [data, ...prev]);
     return { data, payment_method_id: expense.payment_method_id };
   }, [user]);
 
-  // Delete transaction (income or expense)
   const deleteTransaction = useCallback(async (id: string) => {
     if (!user) return { error: new Error('Not authenticated') };
-
     triggerSyncStart();
-
     const { error } = await supabase
       .from('transactions')
       .delete()
       .eq('id', id)
       .eq('user_id', user.id);
-
     if (error) {
       triggerSyncError();
       console.error('Error deleting transaction:', error);
       return { error };
     }
-
     triggerSyncComplete();
     setTransactions((prev) => prev.filter((t) => t.id !== id));
     return { success: true };
   }, [user]);
 
-  // Save monthly note
   const saveMonthlyNote = useCallback(async (month: string, note: string) => {
     if (!user) return { error: new Error('Not authenticated') };
-
     triggerSyncStart();
-
     const { data, error } = await supabase
       .from('monthly_notes')
       .upsert({
@@ -201,13 +174,11 @@ export function useSupabaseFinanceData() {
       })
       .select()
       .single();
-
     if (error) {
       triggerSyncError();
       console.error('Error saving note:', error);
       return { error };
     }
-
     triggerSyncComplete();
     setNotes((prev) => {
       const existing = prev.find((n) => n.month === month);
@@ -219,15 +190,11 @@ export function useSupabaseFinanceData() {
     return { data };
   }, [user]);
 
-  // Get incomes (filtered from transactions)
   const incomes = transactions.filter((t) => t.type === 'income');
-
-  // Get expenses (filtered from transactions)
   const expenses = transactions.filter((t) => t.type === 'expense');
 
-  // Get data for specific month
   const getMonthlyData = useCallback(
-    (date: Date, budgetSettings?: BudgetSetting[]) => {
+    (date: Date, budgetSettings?: BudgetSetting[], budgetPercentages?: Record<string, number>) => {
       const monthStart = startOfMonth(date);
       const monthEnd = endOfMonth(date);
 
@@ -245,81 +212,66 @@ export function useSupabaseFinanceData() {
       const totalExpense = monthExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
       const balance = totalIncome - totalExpense;
 
-      // Calculate spending by category
-      const categorySpending: Record<ExpenseCategory, number> = {
-        Kebutuhan: 0,
-        Investasi: 0,
-        Keinginan: 0,
-        'Dana Darurat': 0,
-      };
-
+      // Calculate spending by category dynamically
+      const categorySpending: Record<string, number> = {};
       monthExpenses.forEach((expense) => {
-        const category = expense.category as ExpenseCategory;
-        if (categorySpending[category] !== undefined) {
-          categorySpending[category] += Number(expense.amount);
+        const category = expense.category;
+        categorySpending[category] = (categorySpending[category] || 0) + Number(expense.amount);
+      });
+
+      // Use provided budgetPercentages or empty
+      const percentages = budgetPercentages || {};
+      const categoryKeys = Object.keys(percentages).length > 0
+        ? Object.keys(percentages)
+        : Object.keys(categorySpending);
+
+      // Ensure all categories from percentages are in spending
+      categoryKeys.forEach(cat => {
+        if (categorySpending[cat] === undefined) {
+          categorySpending[cat] = 0;
         }
       });
 
-      // Calculate budget status
-      const budgetStatus = (Object.keys(BUDGET_PERCENTAGES) as ExpenseCategory[]).map(
-        (category) => {
-          const spent = categorySpending[category];
-          let limit = 0;
-          let targetPercentage = 0;
-          let isBudgetSet = false;
+      const budgetStatus = categoryKeys.map((category) => {
+        const spent = categorySpending[category] || 0;
+        let limit = 0;
+        let targetPercentage = percentages[category] || 0;
 
-          // Check if custom budget exists for this month
-          if (budgetSettings && budgetSettings.length > 0) {
-            const monthKey = format(date, 'yyyy-MM');
-            const categoryBudgets = budgetSettings.filter(b =>
-              b.category === category && b.month === monthKey
-            );
+        if (budgetSettings && budgetSettings.length > 0) {
+          const monthKey = format(date, 'yyyy-MM');
+          const categoryBudgets = budgetSettings.filter(b =>
+            b.category === category && b.month === monthKey
+          );
 
-            if (categoryBudgets.length > 0) {
-              limit = categoryBudgets.reduce((sum, b) => sum + b.monthly_budget, 0);
-              isBudgetSet = true;
-              // Always use the default percentage (50-30-15-5) for display
-              targetPercentage = BUDGET_PERCENTAGES[category];
-            }
+          if (categoryBudgets.length > 0) {
+            limit = categoryBudgets.reduce((sum, b) => sum + b.monthly_budget, 0);
           }
-
-          if (!isBudgetSet) {
-            // Fallback to default percentages if no specific budget set? 
-            // Or keep 0 to show "No budget set"?
-            // User prompt: "Validation message for missing monthly budgets" -> implied in UI if limit is 0.
-            // Let's stick to default percentages IF NO budget setting found at all?
-            // Actually, if we support monthly budgets, we should probably prefer 0 if not set for that month, 
-            // OR fallback to a "Default" if we had one. But we only added 'month' column.
-            // For now, let's use the hardcoded percentages as fallback ONLY if no budgets are customizable?
-            // But the user wants "Budget per subcategory".
-
-            // If I use the old logic:
-            targetPercentage = BUDGET_PERCENTAGES[category];
-            limit = (totalIncome * targetPercentage) / 100;
-          }
-
-          const spentPercentage = (limit > 0) ? (spent / limit) * 100 : (spent > 0 ? 100 : 0);
-
-          let status: 'good' | 'warning' | 'danger' = 'good';
-
-          if (limit > 0) {
-            if (spent > limit) {
-              status = 'danger';
-            } else if (spent > limit * 0.8) {
-              status = 'warning';
-            }
-          }
-
-          return {
-            category,
-            targetPercentage,
-            spentPercentage,
-            spent,
-            limit,
-            status,
-          };
         }
-      );
+
+        if (limit === 0) {
+          limit = (totalIncome * targetPercentage) / 100;
+        }
+
+        const spentPercentage = (limit > 0) ? (spent / limit) * 100 : (spent > 0 ? 100 : 0);
+
+        let status: 'good' | 'warning' | 'danger' = 'good';
+        if (limit > 0) {
+          if (spent > limit) {
+            status = 'danger';
+          } else if (spent > limit * 0.8) {
+            status = 'warning';
+          }
+        }
+
+        return {
+          category,
+          targetPercentage,
+          spentPercentage,
+          spent,
+          limit,
+          status,
+        };
+      });
 
       const monthKey = format(date, 'yyyy-MM');
       const monthNote = notes.find((n) => n.month === monthKey);
@@ -338,12 +290,10 @@ export function useSupabaseFinanceData() {
     [incomes, expenses, notes]
   );
 
-  // Get monthly summary for charts (last N months)
   const getMonthlySummary = useCallback(
     (months: number = 6) => {
       const summaries = [];
       const today = new Date();
-
       for (let i = months - 1; i >= 0; i--) {
         const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
         const data = getMonthlyData(date);
@@ -355,13 +305,11 @@ export function useSupabaseFinanceData() {
           balance: data.balance,
         });
       }
-
       return summaries;
     },
     [getMonthlyData]
   );
 
-  // Update transaction
   const updateTransaction = useCallback(async (id: string, updates: {
     date: string;
     category: string;
@@ -371,9 +319,7 @@ export function useSupabaseFinanceData() {
     type: 'income' | 'expense';
   }) => {
     if (!user) return { error: new Error('Not authenticated') };
-
     triggerSyncStart();
-
     const { data, error } = await supabase
       .from('transactions')
       .update({
@@ -388,13 +334,11 @@ export function useSupabaseFinanceData() {
       .eq('user_id', user.id)
       .select()
       .single();
-
     if (error) {
       triggerSyncError();
       console.error('Error updating transaction:', error);
       return { error };
     }
-
     triggerSyncComplete();
     setTransactions((prev) => prev.map((t) => (t.id === id ? data : t)));
     return { data };

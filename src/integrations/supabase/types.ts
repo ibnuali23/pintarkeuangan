@@ -193,6 +193,39 @@ export type Database = {
         }
         Relationships: []
       }
+      expense_category_settings: {
+        Row: {
+          category_name: string
+          created_at: string
+          icon: string | null
+          id: string
+          percentage: number
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category_name: string
+          created_at?: string
+          icon?: string | null
+          id?: string
+          percentage?: number
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category_name?: string
+          created_at?: string
+          icon?: string | null
+          id?: string
+          percentage?: number
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       income_targets: {
         Row: {
           amount: number

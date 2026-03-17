@@ -1,10 +1,9 @@
 import { useMemo } from 'react';
 import { useProfileSettings, CustomCategory } from './useProfileSettings';
+import { useExpenseCategories } from './useExpenseCategories';
 import { 
-  EXPENSE_CATEGORIES, 
   EXPENSE_SUBCATEGORIES, 
   INCOME_SUBCATEGORIES,
-  ExpenseCategory 
 } from '@/types/finance';
 
 export interface DynamicCategory {
@@ -13,12 +12,15 @@ export interface DynamicCategory {
 }
 
 export function useDynamicCategories() {
-  const { customCategories, isLoading, refetch } = useProfileSettings();
+  const { customCategories, isLoading: isProfileLoading, refetch: refetchProfile } = useProfileSettings();
+  const { categoryNames, budgetPercentages, categoryIcons, isLoading: isCategoriesLoading } = useExpenseCategories();
+
+  const isLoading = isProfileLoading || isCategoriesLoading;
 
   // Get all expense subcategories (default + custom) grouped by category
   const expenseCategories = useMemo((): DynamicCategory[] => {
-    return EXPENSE_CATEGORIES.map(category => {
-      const defaultSubs = EXPENSE_SUBCATEGORIES[category] || [];
+    return categoryNames.map(category => {
+      const defaultSubs = EXPENSE_SUBCATEGORIES[category as keyof typeof EXPENSE_SUBCATEGORIES] || [];
       const customSubs = customCategories
         .filter(c => c.type === 'expense' && c.category === category)
         .map(c => c.subcategory);
@@ -31,7 +33,7 @@ export function useDynamicCategories() {
         subcategories: allSubs,
       };
     });
-  }, [customCategories]);
+  }, [customCategories, categoryNames]);
 
   // Get all income subcategories (default + custom)
   const incomeSubcategories = useMemo((): string[] => {
@@ -44,7 +46,7 @@ export function useDynamicCategories() {
   }, [customCategories]);
 
   // Get subcategories for a specific expense category
-  const getExpenseSubcategories = (category: ExpenseCategory): string[] => {
+  const getExpenseSubcategories = (category: string): string[] => {
     const categoryData = expenseCategories.find(c => c.category === category);
     return categoryData?.subcategories || [];
   };
@@ -66,7 +68,10 @@ export function useDynamicCategories() {
     getCustomCategoriesByType,
     getCustomSubcategoriesForCategory,
     customCategories,
+    categoryNames,
+    budgetPercentages,
+    categoryIcons,
     isLoading,
-    refetch,
+    refetch: refetchProfile,
   };
 }

@@ -11,8 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { MonthlyBarChart } from '@/components/dashboard/MonthlyBarChart';
 import { BudgetDonutChart } from '@/components/dashboard/BudgetDonutChart';
-import { BUDGET_PERCENTAGES, ExpenseCategory } from '@/types/finance';
 import { useDynamicCategories } from '@/hooks/useDynamicCategories';
+import { useExpenseCategories } from '@/hooks/useExpenseCategories';
 import { toast } from 'sonner';
 import {
   Select,
@@ -38,6 +38,7 @@ export default function ReportPage() {
 
   const { getMonthlyData, getMonthlySummary, saveMonthlyNote, isLoading: isDataLoading } = useSupabaseFinanceData();
   const { expenseCategories, incomeSubcategories, isLoading: isCategoriesLoading } = useDynamicCategories();
+  const { budgetPercentages, categoryIcons: expCategoryIcons } = useExpenseCategories();
   const { isAuthenticated } = useAuth();
   const { getAccessToken, isTokenLoading } = useGoogleAuth();
   const [isUploading, setIsUploading] = useState(false);
@@ -260,9 +261,10 @@ export default function ReportPage() {
   }
 
   const getCategoryData = () => {
-    return (Object.keys(BUDGET_PERCENTAGES) as ExpenseCategory[]).map((category) => {
-      const spent = monthlyData.categorySpending[category];
-      const target = BUDGET_PERCENTAGES[category];
+    const categories = Object.keys(budgetPercentages);
+    return categories.map((category) => {
+      const spent = monthlyData.categorySpending[category] || 0;
+      const target = budgetPercentages[category] || 0;
       const spentPercentage = monthlyData.totalExpense > 0
         ? (spent / monthlyData.totalExpense) * 100
         : 0;
@@ -477,6 +479,8 @@ export default function ReportPage() {
               <BudgetDonutChart
                 categorySpending={monthlyData.categorySpending}
                 totalExpense={monthlyData.totalExpense}
+                budgetPercentages={budgetPercentages}
+                categoryIcons={expCategoryIcons}
               />
             </CardContent>
           </Card>
