@@ -24,6 +24,7 @@ interface BudgetRealizationCardProps {
 
 export function BudgetRealizationCard({ budgetSettings, expenses }: BudgetRealizationCardProps) {
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const { getExpenseSubcategories, categoryNames } = useDynamicCategories();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', {
