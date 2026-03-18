@@ -62,10 +62,18 @@ export function BudgetRealizationCard({ budgetSettings, expenses }: BudgetRealiz
     subcategorySpending.set(key, (subcategorySpending.get(key) || 0) + Number(exp.amount));
   });
 
-  // Filter budget settings for selected month only
+  // Filter budget settings for selected month, and exclude deleted subcategories
+  const allValidSubcategories = new Set<string>();
+  categoryNames.forEach(cat => {
+    getExpenseSubcategories(cat).forEach(sub => allValidSubcategories.add(`${cat}|${sub}`));
+  });
+
   const filteredBudgets = budgetSettings.filter((b) => {
     if (!b.month) return false;
-    return b.month === selectedMonth;
+    if (b.month !== selectedMonth) return false;
+    // Filter out subcategories that no longer exist
+    const key = `${b.category}|${b.subcategory}`;
+    return allValidSubcategories.has(key);
   });
 
   // Calculate realization for each budget, filtering out subcategories that no longer exist in transactions or have data
