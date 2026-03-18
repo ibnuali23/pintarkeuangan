@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useProfileSettings, CustomCategory } from './useProfileSettings';
 import { useExpenseCategories } from './useExpenseCategories';
 import { 

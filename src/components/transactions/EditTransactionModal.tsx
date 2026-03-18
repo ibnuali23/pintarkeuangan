@@ -96,12 +96,23 @@ export function EditTransactionModal({ transaction, isOpen, onClose, onSave }: E
   }, [transaction, isOpen, setValue, getExpenseSubcategories, incomeSubcategories]);
 
   useEffect(() => {
+    if (!isOpen) return;
+    // Skip if this is the initial load (handled by the other useEffect)
     if (selectedType === 'expense' && selectedCategory) {
-      setAvailableSubcategories(getExpenseSubcategories(selectedCategory));
+      const subs = getExpenseSubcategories(selectedCategory);
+      setAvailableSubcategories(subs);
+      // Reset subcategory if current value is not in the new list
+      if (selectedSubcategory && !subs.includes(selectedSubcategory)) {
+        setValue('subcategory', '');
+      }
     } else if (selectedType === 'income') {
-      setAvailableSubcategories([...incomeSubcategories]);
+      const subs = [...incomeSubcategories];
+      setAvailableSubcategories(subs);
+      if (selectedSubcategory && !subs.includes(selectedSubcategory)) {
+        setValue('subcategory', '');
+      }
     }
-  }, [selectedCategory, selectedType, getExpenseSubcategories, incomeSubcategories]);
+  }, [selectedCategory, selectedType, getExpenseSubcategories, incomeSubcategories, isOpen]);
 
   const formatCurrencyInput = (value: string) => {
     const numbers = value.replace(/\D/g, '');

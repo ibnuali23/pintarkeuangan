@@ -66,7 +66,7 @@ export function BudgetRealizationCard({ budgetSettings, expenses }: BudgetRealiz
     return b.month === selectedMonth;
   });
 
-  // Calculate realization for each budget
+  // Calculate realization for each budget, filtering out subcategories that no longer exist in transactions or have data
   const realizations = filteredBudgets
     .filter((b) => b.monthly_budget > 0)
     .map((budget) => {
