@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { ExpenseForm } from '@/components/forms/ExpenseForm';
 import { useSupabaseFinanceData, Transaction } from '@/hooks/useSupabaseFinanceData';
+import { useExpenseCategories } from '@/hooks/useExpenseCategories';
 import { useProfileSettings } from '@/hooks/useProfileSettings';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { TrendingDown, History, Trash2, Edit2 } from 'lucide-react';
