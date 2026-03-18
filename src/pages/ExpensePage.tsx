@@ -23,12 +23,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-const categoryIcons: Record<string, string> = {
-  Kebutuhan: '🏠',
-  Investasi: '📈',
-  Keinginan: '🎁',
-  'Dana Darurat': '🛡️',
-};
 
 export default function ExpensePage() {
   const { expenses, addExpense, deleteExpense, updateTransaction, isLoading } = useSupabaseFinanceData();
