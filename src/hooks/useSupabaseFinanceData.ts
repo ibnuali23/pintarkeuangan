@@ -234,23 +234,10 @@ export function useSupabaseFinanceData() {
 
       const budgetStatus = categoryKeys.map((category) => {
         const spent = categorySpending[category] || 0;
-        let limit = 0;
-        let targetPercentage = percentages[category] || 0;
+        const targetPercentage = percentages[category] || 0;
 
-        if (budgetSettings && budgetSettings.length > 0) {
-          const monthKey = format(date, 'yyyy-MM');
-          const categoryBudgets = budgetSettings.filter(b =>
-            b.category === category && b.month === monthKey
-          );
-
-          if (categoryBudgets.length > 0) {
-            limit = categoryBudgets.reduce((sum, b) => sum + b.monthly_budget, 0);
-          }
-        }
-
-        if (limit === 0) {
-          limit = (totalIncome * targetPercentage) / 100;
-        }
+        // Always use percentage-based limit for category-level budget status
+        const limit = (totalIncome * targetPercentage) / 100;
 
         const spentPercentage = (limit > 0) ? (spent / limit) * 100 : (spent > 0 ? 100 : 0);
 
