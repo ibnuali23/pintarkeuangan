@@ -169,7 +169,19 @@ export default function Dashboard() {
         <TransferHistoryCard
           transfers={transfers}
           paymentMethods={paymentMethods}
-          onDelete={deleteTransfer}
+          onDelete={async (id) => {
+            const transfer = transfers.find(t => t.id === id);
+            if (transfer) {
+              // Restore balances: add back to source, subtract from destination
+              if (transfer.from_method_id) {
+                await adjustPaymentMethodBalance(transfer.from_method_id, Number(transfer.amount), true);
+              }
+              if (transfer.to_method_id) {
+                await adjustPaymentMethodBalance(transfer.to_method_id, Number(transfer.amount), false);
+              }
+            }
+            await deleteTransfer(id);
+          }}
           isAdmin={isAdmin}
         />
 

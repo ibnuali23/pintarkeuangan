@@ -50,7 +50,7 @@ export function BudgetStatusList({ budgetStatus, totalIncome, categoryIcons = {}
   return (
     <div className="space-y-3">
       {budgetStatus.map((item) => {
-        const idealAmount = (totalIncome * item.targetPercentage) / 100;
+        const idealAmount = item.limit > 0 ? item.limit : (totalIncome * item.targetPercentage) / 100;
         const progressPercentage = Math.min(
           (item.spent / Math.max(idealAmount, 1)) * 100,
           100
